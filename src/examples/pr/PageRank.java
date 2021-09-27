@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.util.HashMap;
 
 import parallel.Gadget;
 import parallel.GatherFromEdges;
@@ -19,6 +20,7 @@ import circuits.arithmetic.IntegerLib;
 import flexsc.CompEnv;
 import flexsc.Party;
 import gc.BadLabelException;
+import gc.GCSignal;
 
 public class PageRank<T> extends Gadget<T> {
 	static int ITERATIONS = 1;
@@ -60,39 +62,144 @@ public class PageRank<T> extends Gadget<T> {
 		return ret;
 	}
 
+    private HashMap<Integer,Double> getResult(int garblerId,
+			final CompEnv<T> env,
+			PageRankNode<T>[] pr,
+			int iterations,
+			ArithmeticLib<T> flib) throws IOException, BadLabelException {
+        HashMap<Integer,Double> resDict = new HashMap<Integer,Double>();
+		if (garblerId == 0 && Party.Alice.equals(env.getParty())) {
+			System.out.println("PageRank of vertices after " + iterations + " iteration(s):");
+		}
+		for (int i = 0; i < pr.length; i++) {
+			int u = Utils.toInt(env.outputToAlice(pr[i].u));
+			double pageRank = flib.outputToAlice(pr[i].pr);
+			boolean e = env.outputToAlice(pr[i].isVertex);
+			env.channel.flush();
+			if (Party.Alice.equals(env.party)) {
+				if (e&&u!=0) {
+                    resDict.put(u,pageRank);
+					System.out.format("%d %.2f\n", u, pageRank);
+				}
+			}
+	    }
+        return resDict;
+	}
+
 	@Override
 	public Object secureCompute() throws Exception {
-		int inputLength = machine.getInputLength() / machine.getTotalMachines();
+		String[] inputLengthes =machine.getInputLength().split(",");
+        int inputLength = Integer.parseInt(inputLengthes[0])/ machine.getTotalMachines();
+        env.channel.writeInt(inputLength);
+        env.channel.flush();
+		int otherInputLength = env.channel.readInt();
 		boolean[][] u = null;
 		boolean[][] v = null;
 		boolean[] isV = null;
-		if (env.getParty().equals(Party.Alice)) {
-			u = new boolean[inputLength][GraphNode.VERTEX_LEN];
-			v = new boolean[inputLength][GraphNode.VERTEX_LEN];
-			isV = new boolean[inputLength];
-		} else {
-			Object[] input = getInput(inputLength, machine.getGarblerId(), machine.getTotalMachines());
-			u = (boolean[][]) input[0];
-			v = (boolean[][]) input[1];
-			isV = (boolean[]) input[2];
+		boolean[][] u_a = null;
+		boolean[][] v_a = null;
+		PageRankNode<T>[] nodes_a=null;
+		boolean[] isV_a = null;
+		boolean[][] u_b = null;
+		boolean[][] v_b = null;
+		boolean[] isV_b = null;
+		PageRankNode<T>[] nodes_b=null;
+		PageRankNode<T>[] nodes=null;
+		if (env.getParty().equals(Party.Alice)) { 
+			if (inputLength>0){ 
+				System.out.println("Alice inputLength "+(inputLength));
+				Object[] input = getInput(inputLength, machine.getGarblerId(), machine.getTotalMachines()); //Gen Alice生成器方数据
+				u_a = (boolean[][]) input[0];
+				v_a = (boolean[][]) input[1];
+				isV_a = (boolean[]) input[2];
+			}
+			System.out.println("Bob inputLength "+(otherInputLength));
+			u_b = new boolean[otherInputLength][GraphNode.VERTEX_LEN];
+			v_b = new boolean[otherInputLength][GraphNode.VERTEX_LEN];
+			isV_b = new boolean[otherInputLength];
+		} else { 
+			if (otherInputLength>0){
+				System.out.println("Alice inputLength"+(otherInputLength));
+				u_a = new boolean[otherInputLength][GraphNode.VERTEX_LEN];
+				v_a = new boolean[otherInputLength][GraphNode.VERTEX_LEN];
+				isV_a = new boolean[otherInputLength];
+			}
+			System.out.println("Bob inputLength "+(inputLength));
+			Object[] input = getInput(inputLength, machine.getGarblerId(), machine.getTotalMachines()); //EVa Bob执行器侧数据
+			u_b = (boolean[][]) input[0];
+			v_b = (boolean[][]) input[1];
+			isV_b = (boolean[]) input[2];
 		}
-		T[][] tu = (T[][]) env.inputOfBob(u);
-		T[][] tv = (T[][]) env.inputOfBob(v);
-		T[] tIsV = (T[]) env.inputOfBob(isV);
-		PageRankNode<T>[] nodes = (PageRankNode<T>[]) Array.newInstance(PageRankNode.class, u.length);
-		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new PageRankNode<T>(tu[i], tv[i], tIsV[i], env);
+		if (u_a!=null){
+			T[][] tu_a = (T[][]) env.inputOfAlice(u_a);
+			T[][] tv_a = (T[][]) env.inputOfAlice(v_a);
+			T[] tIsV_a = (T[]) env.inputOfAlice(isV_a);
+			nodes_a = (PageRankNode<T>[]) Array.newInstance(PageRankNode.class, u_a.length);
+			for (int i = 0; i < nodes_a.length; i++) {
+				nodes_a[i] = new PageRankNode<T>(tu_a[i], tv_a[i], tIsV_a[i], env);
+			}
+		}
+		T[][] tu_b = (T[][]) env.inputOfBob(u_b);
+		T[][] tv_b = (T[][]) env.inputOfBob(v_b);
+		T[] tIsV_b = (T[]) env.inputOfBob(isV_b);
+		// 通过OT 获取的顶点数据，秘密分享在哪里呢？
+		System.out.println("bbbbbbbbbbbbbbb "+(((GCSignal[])tu_b[0])[0].toHexStr()));
+		nodes_b = (PageRankNode<T>[]) Array.newInstance(PageRankNode.class, u_b.length);
+		for (int i = 0; i < nodes_b.length; i++) {
+			nodes_b[i] = new PageRankNode<T>(tu_b[i], tv_b[i], tIsV_b[i], env);
+			System.out.println("hhhhhhhhhhhhhhhh "+(((GCSignal) nodes_b[i].isVertex)).equals( nodes_b[0].isVertex));
+		}
+		if (u_a!=null){
+			nodes = (PageRankNode<T>[]) Array.newInstance(PageRankNode.class, u_a.length+u_b.length);
+			for (int i = 0; i < nodes.length; i++) {
+				if (i<u_a.length){
+					nodes[i]=nodes_a[i];
+				}else{
+					nodes[i] = nodes_b[i-u_a.length];
+					// PageRankNode<T>[] temp=new PageRankNode[1];
+					// temp[0] = nodes[i-u_a.length];
+					// T in = nodes_b[i].inset(temp,nodes_b[i],env);
+					// GraphNode<T> ret;
+					// ret = nodes_b[i-u_a.length].mux(nodes_b[i-u_a.length],in,env);
+					// nodes[i].u = ret.u;
+					// nodes[i].v = ret.v;
+					// nodes[i].isVertex = ret.isVertex;
+				}
+			}
+		}
+		else{
+			nodes=nodes_b;
 		}
 		
-		
-		
-		
-		
-		
-		// business logic
-		final IntegerLib<T> lib = new IntegerLib<>(env);
-		final ArithmeticLib<T> flib = new FixedPointLib<T>(env, PageRankNode.WIDTH, PageRankNode.OFFSET);
+		return secureCompute(nodes);
+	}
 
+	private <T> void print(int garblerId,
+			final CompEnv<T> env,
+			PageRankNode<T>[] pr,
+			int iterations,
+			ArithmeticLib<T> flib) throws IOException, BadLabelException {
+		if (garblerId == 0 && Party.Alice.equals(env.getParty())) {
+			System.out.println("PageRank of vertices after " + iterations + " iteration(s):");
+		}
+		for (int i = 0; i < pr.length; i++) {
+			int u = Utils.toInt(env.outputToAlice(pr[i].u));
+			double pageRank = flib.outputToAlice(pr[i].pr);
+			boolean e = env.outputToAlice(pr[i].isVertex);
+			env.channel.flush();
+			if (Party.Alice.equals(env.party)) {
+				if (e&&u!=0) {
+					System.out.format("%d %.2f\n", u, pageRank);
+				}
+			}
+	    }
+	}
+
+    public HashMap<Integer,Double> secureCompute(PageRankNode<T>[] nodes) throws Exception {
+		// business logic
+		final IntegerLib<T> lib = new IntegerLib<>(env);  //实现秘态的加减乘除、逻辑运算等
+		final ArithmeticLib<T> flib = new FixedPointLib<T>(env, PageRankNode.WIDTH, PageRankNode.OFFSET);//实现定点数秘态的加减乘除、逻辑运算等
+        
 		// set initial pagerank
 		new SetInitialPageRankGadget<T>(env, machine)
 				.setInputs(nodes)
@@ -156,28 +263,7 @@ public class PageRank<T> extends Gadget<T> {
 		new SortGadget<T>(env, machine)
 			.setInputs(nodes, PageRankNode.allVerticesFirst(env))
 			.secureCompute();
-		print(machine.getGarblerId(), env, nodes, ITERATIONS, flib);
-		return null;
-	}
-
-	private <T> void print(int garblerId,
-			final CompEnv<T> env,
-			PageRankNode<T>[] pr,
-			int iterations,
-			ArithmeticLib<T> flib) throws IOException, BadLabelException {
-		if (garblerId == 0 && Party.Alice.equals(env.getParty())) {
-			System.out.println("PageRank of vertices after " + iterations + " iteration(s):");
-		}
-		for (int i = 0; i < pr.length; i++) {
-			int u = Utils.toInt(env.outputToAlice(pr[i].u));
-			double pageRank = flib.outputToAlice(pr[i].pr);
-			boolean e = env.outputToAlice(pr[i].isVertex);
-			env.channel.flush();
-			if (Party.Alice.equals(env.party)) {
-				if (e) {
-					System.out.format("%d %.2f\n", u, pageRank);
-				}
-			}
-	    }
+		// print(machine.getGarblerId(), env, nodes, ITERATIONS, flib);
+		return getResult(machine.getGarblerId(), env, nodes, ITERATIONS, flib);
 	}
 }

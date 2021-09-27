@@ -32,14 +32,17 @@ import gc.offline.FileReader;
 import gc.offline.GCGen;
 
 public class Machine {
-	public static boolean DEBUG = false;
+	public static boolean DEBUG = true;
 
+    private String jobid;
 	private int garblerId;
 	private int peerPort;
 	private int totalMachines;
 	private int logMachines;
 	private boolean isGen;
-	private int inputLength;
+	private String inputLength;
+	private int numOfedgeType;
+    private String experiments;
 	private Gadget gadget;
 	private CompEnv env;
 	Network[] peersUp;
@@ -48,17 +51,23 @@ public class Machine {
 	int numberOfIncomingConnections;
 	int numberOfOutgoingConnections;
 
-	public Machine(int garblerId,
+	public Machine(String jobid,
+            int garblerId,
 			int totalMachines,
 			boolean isGen,
-			int inputLength,
-			int peerPort) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+			String inputLength,
+			int numOfedgeType,
+			int peerPort,
+            String experiments) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+        this.jobid = jobid;
 		this.garblerId = garblerId;
 		this.totalMachines = totalMachines;
 		this.isGen = isGen;
 		this.inputLength = inputLength;
+		this.numOfedgeType = numOfedgeType;
 		this.peerPort = peerPort;
 		this.logMachines = Utils.log2(this.totalMachines);
+        this.experiments = experiments;
 		if (logMachines > 0) {
 			this.peersUp = new Network[logMachines];
 			this.peersDown = new Network[logMachines];
@@ -163,10 +172,12 @@ public class Machine {
 
 	static CommandLine processArgs(String[] args) throws ParseException {
 		Options options = new Options();
+        options.addOption("j", "jobid", true, "jobid");
 		options.addOption("pid", "garblerId", true /* hasArg */, "machineId");
 		options.addOption("port", "garblerPort", true, "garblePort");
 		options.addOption("g", "isGen", true, "isGen");
 		options.addOption("n", "inputLength", true, "inputLength");
+		options.addOption("e", "numOfedgeType", true, "numOfedgeType");
 		options.addOption("program", "program", true, "program");
 		options.addOption("p", "totalGarblers", true, "totalGarblers");
 		options.addOption("machineConfigFile", "machineConfigFile", true, "machineConfigFile");
@@ -187,25 +198,35 @@ public class Machine {
 		IPManager.loadIPs(machines, machineConfigFile);
 		int compPoolGenEvaPort = Integer.parseInt(cmd.getOptionValue("garblerPort"));
 		Mode mode = Mode.valueOf(cmd.getOptionValue("mode"));
-		Machine machine = new Machine(Integer.parseInt(cmd.getOptionValue("garblerId")) /* garblerId */,
+		Machine machine = new Machine(cmd.getOptionValue("jobid")/* jobid */,
+                Integer.parseInt(cmd.getOptionValue("garblerId")) /* garblerId */,
 				Integer.parseInt(cmd.getOptionValue("totalGarblers")) /* machines */,
 				Boolean.parseBoolean(cmd.getOptionValue("isGen")) /* isGen */,
-				Integer.parseInt(cmd.getOptionValue("inputLength")) /* inputLength */,
-				Integer.parseInt(cmd.getOptionValue("peerBasePort")) /* peerPort */);
+				cmd.getOptionValue("inputLength") /* inputLength */,
+				Integer.parseInt(cmd.getOptionValue("numOfedgeType")),
+				Integer.parseInt(cmd.getOptionValue("peerBasePort")) /* peerPort */,
+                cmd.getOptionValue("program")/* experiments */);
 
+        //totalMachines必须为2的幂次方
+        if(!(machine.totalMachines > 0 && (machine.totalMachines & (machine.totalMachines - 1)) == 0)){
+            throw new AssertionError("totalMachines must be a power of 2 !!!");
+        }
 		// Connect to the other party
 		machine.env = machine.connectToOtherParty(mode, compPoolGenEvaPort);
 		if (machine.env.getMode().equals(Mode.OFFLINE)) {
 			Flag.offline = Boolean.parseBoolean(cmd.getOptionValue("offline"));
 		}
 		machine.connect();
-		String experiment = cmd.getOptionValue("program");
-		Class c = Class.forName("examples." + experiment);
+		// Class c = Class.forName("examples." + experiment);
+        Class c = Class.forName("examples.HeteroGraph");
 		machine.gadget = (Gadget) c.getConstructor(new Class[]{CompEnv.class, Machine.class})
 				.newInstance(machine.env, machine);
 		machine.gadget.secureCompute();
+		String processName = java.lang.management.ManagementFactory.getRuntimeMXBean().getName();
+        String processID = processName.substring(0,processName.indexOf('@'));
+		System.out.println("secureCompute done! disconnecting ......"+processID);
 		machine.disconnect();
-
+        System.out.println("disconnect done!"+processID);
 		if(!Flag.offline && machine.env.getParty().equals(Party.Alice)) {
 			try {
 				gc.offline.GCGen.fout.flush();
@@ -213,6 +234,7 @@ public class Machine {
 				e.printStackTrace();
 			}
 		}
+		System.out.println("done! "+processID);
 	}
 
 	public void disconnect() throws IOException {
@@ -264,7 +286,19 @@ public class Machine {
 		return isGen;
 	}
 
-	public int getInputLength() {
+	public String getInputLength() {
 		return inputLength;
+	}
+
+	public int getNumOfedgeType() {
+		return numOfedgeType;
+	}
+
+    public String getJobid() {
+		return jobid;
+	}
+
+    public String getExperiments() {
+		return experiments;
 	}
 }

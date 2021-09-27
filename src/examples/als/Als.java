@@ -122,8 +122,10 @@ public class Als<T> extends Gadget<T> {
 	public Object secureCompute() throws Exception {
 		final IntegerLib<T> lib = new IntegerLib<>(env);
 		final FixedPointLib<T> flib = new FixedPointLib<>(env, AlsNode.FIX_POINT_WIDTH, AlsNode.OFFSET);
+        String[] inputLengthes =machine.getInputLength().split(",");
+        int inputLength = Integer.parseInt(inputLengthes[0])/ machine.getTotalMachines();
 
-		AlsNode<T>[] aa = readInput(machine.getInputLength() / machine.getTotalMachines(),
+		AlsNode<T>[] aa = readInput(inputLength,
 				env,
 				machine.getGarblerId(),
 				machine.getTotalMachines());

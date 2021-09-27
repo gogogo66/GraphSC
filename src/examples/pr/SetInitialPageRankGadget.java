@@ -31,7 +31,21 @@ public class SetInitialPageRankGadget<T> extends Gadget<T> {
 		T[] zero = env.inputOfAlice(Utils.fromFixPoint(0, PageRankNode.WIDTH, PageRankNode.OFFSET));
 		for (int i = 0; i < prNodes.length; i++) {
 			prNodes[i].pr = intLib.mux(zero, one, prNodes[i].isVertex);
-			prNodes[i].l = intLib.mux(one, zero, prNodes[i].isVertex);
+			prNodes[i].l = intLib.mux(one, zero, prNodes[i].isVertex);   //l is the number of outgoing edges
+		}
+		return null;
+	}
+
+	public Object secureCompute(T[] e_flag) throws InterruptedException, IOException,
+			BadLabelException {
+		IntegerLib<T> intLib = new IntegerLib<T>(env);
+		T[] one = env.inputOfAlice(Utils.fromFixPoint(1, PageRankNode.WIDTH, PageRankNode.OFFSET));
+		T[] zero = env.inputOfAlice(Utils.fromFixPoint(0, PageRankNode.WIDTH, PageRankNode.OFFSET));
+		for (int i = 0; i < prNodes.length; i++) {
+			prNodes[i].pr = intLib.mux(zero, one, prNodes[i].isVertex);
+            prNodes[i].pr = intLib.multiply(prNodes[i].pr, e_flag);
+			prNodes[i].l = intLib.mux(one, zero, prNodes[i].isVertex);   //l is the number of outgoing edges
+            prNodes[i].l = intLib.multiply(prNodes[i].l, e_flag);
 		}
 		return null;
 	}

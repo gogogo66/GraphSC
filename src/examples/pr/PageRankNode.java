@@ -5,8 +5,8 @@ import util.Utils;
 import flexsc.CompEnv;
 
 public class PageRankNode<T> extends GraphNode<T> {
-	T[] pr;
-	T[] l;
+	public T[] pr;
+	public T[] l;
 	static int OFFSET = 20;
 	static int WIDTH = 40;
 
@@ -35,4 +35,5 @@ public class PageRankNode<T> extends GraphNode<T> {
 		Utils.unflatten(flat, u, v, pr, l, vert);
 		isVertex = vert[0];
 	}
+
 }

@@ -76,7 +76,8 @@ public class MatrixFactorization<T> extends Gadget<T> {
 	@Override
 	public Object secureCompute() throws Exception {
 		// prepare data
-		int inputLength = machine.getInputLength() / machine.getTotalMachines();
+		String[] inputLengthes =machine.getInputLength().split(",");
+        int inputLength = Integer.parseInt(inputLengthes[0])/ machine.getTotalMachines();
 		boolean[][] u = null;
 		boolean[][] v = null;
 		boolean[] isV = null;
