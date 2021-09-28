@@ -16,4 +16,4 @@ hs_err_pid*
 !/bin/*.py
 !/bin/in
 !/bin/machine_spec
-/bin/result/
+/bin/work_space/

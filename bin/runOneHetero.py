@@ -12,7 +12,7 @@ def hetero_to_homo(filepath,jobid,role,garblers):
     """异构图转同构图，并存储"""
     hetero_df = pd.read_csv(filepath,index_col=None,header=None,sep=" ")
     fold_name = os.path.join(work_path,jobid,role,f'input')
-    print(fold_name)
+    # print(fold_name)
     if  not os.path.exists(fold_name):
         os.makedirs(fold_name)
     edge_and_lenght = {}
@@ -79,6 +79,6 @@ if __name__ == "__main__":
                                 res_df = pd.concat([res_df,df_of_garbid],axis=0)
                 res_df = res_df.groupby(0).mean().reset_index()
                 res_df.to_csv(os.path.join(work_path,jobid,role,f'result/')+task+".csv",index=None,header=None,sep=' ')
-                print(res_df.groupby(0).mean().reset_index())
+                print(res_df)
                         
     start()

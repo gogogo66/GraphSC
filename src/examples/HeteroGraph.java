@@ -90,7 +90,7 @@ public class HeteroGraph<T> extends Gadget<T> {
 
         String dir = System.getProperty("user.dir") +"/work_space/"+jobid+"/"+role;
         //文件夹
-        System.out.format(dir);
+        // System.out.format(dir);
         File file = new File(dir);
         if (!file.exists()) 
             file.mkdirs();
@@ -117,7 +117,7 @@ public class HeteroGraph<T> extends Gadget<T> {
 
         String dir = System.getProperty("user.dir") +"/work_space/"+jobid+"/"+role+"/result/edgeType"+edgeType;
         //文件夹
-        System.out.format(dir);
+        // System.out.format(dir);
         File file = new File(dir);
         if (!file.exists()) 
             file.mkdirs();
