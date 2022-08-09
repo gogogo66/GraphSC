@@ -39,3 +39,66 @@ In case of any queries, please contact Kartik Nayak (kartik@cs.umd.edu)
 python ./runOneHetero.py --jobid test --experiments pr.PageRank --role guest --input_length 10 --garblers 4 --num_of_edge_type 2
 
 python ./runOneHetero.py --jobid test --experiments pr.PageRank --role host --input_length 20 --garblers 4 --num_of_edge_type 2
+
+########
+
+########################################################################################################################
+########################################################################################################################
+
+# 20220809新增图计算mock
+
+## build_graph.py
+构建图
+获取交集的n阶邻域展示
+
+## graph_representation_mock.py
+图表示，单方计算
+in_degree,out_degree,pagerank,betweenness_centralitys,closeness_centrality
+
+## 图数据格式
+### attributes.json
+实体属性
+{
+    "attrs": [
+        [
+            "高品质服务+跨越式成长，长期价值可期" (实体名称),
+            "评级"(属性),  
+            "优于大市" (属性值)
+        ],
+        [
+            "高品质服务+跨越式成长，长期价值可期",
+            "发布时间",
+            "2020/2/19"
+        ],
+    ]
+}
+
+### entities.json
+实体
+{
+    "人物": [
+        "王勃华",
+        "杨光磊",
+    ],
+    "行业": [
+        "可穿戴设备",
+        "零售",
+    ],
+}
+    
+### relationships.json
+关系
+{
+    "relationships": [
+        [
+            "赋能全球生物药研发的 CRO/CDMO 龙头",
+            "涉及",
+            "药明生物"
+        ],
+        [
+            "赋能全球生物药研发的 CRO/CDMO 龙头",
+            "涉及",
+            "Arcus Biosicence"
+        ],
+    ]
+}
